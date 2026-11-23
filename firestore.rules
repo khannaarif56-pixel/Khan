@@ -1,0 +1,293 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- Entity Validation Blueprints ---
+
+    function isValidProfileSettings(data, userId) {
+      return data.userId == userId &&
+        data.ownerDisplayName is string && data.ownerDisplayName.size() >= 1 && data.ownerDisplayName.size() <= 60 &&
+        data.primaryLanguage in ['en', 'hi'] &&
+        data.memoryEnabled is bool &&
+        data.selectedVoiceId is string && data.selectedVoiceId.size() >= 1 && data.selectedVoiceId.size() <= 64 &&
+        data.voiceSpeechRate is number && data.voiceSpeechRate >= 0.5 && data.voiceSpeechRate <= 2.0 &&
+        data.voicePitch is number && data.voicePitch >= 0.5 && data.voicePitch <= 2.0 &&
+        data.favoriteVoiceIds is list && data.favoriteVoiceIds.size() <= 20 &&
+        (data.favoriteVoiceIds.size() == 0 || data.favoriteVoiceIds[0] is string) &&
+        data.securityPinConfigured is bool &&
+        data.biometricEnabled is bool &&
+        data.secureChatEnabled is bool &&
+        data.voicePassphraseEnabled is bool &&
+        data.emergencyLocked is bool &&
+        data.installedVersion is string && data.installedVersion.size() >= 1 && data.installedVersion.size() <= 30 &&
+        data.lastUpdateReviewIso is string && data.lastUpdateReviewIso.size() >= 1 && data.lastUpdateReviewIso.size() <= 40 &&
+        data.nextUpdateReviewIso is string && data.nextUpdateReviewIso.size() >= 1 && data.nextUpdateReviewIso.size() <= 40 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidChatMessage(data, userId) {
+      return data.userId == userId &&
+        data.role in ['user', 'model'] &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 20000 &&
+        data.language in ['en', 'hi'] &&
+        data.center in ['brain', 'voice', 'search', 'google', 'coding', 'tools'] &&
+        data.encrypted is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPersonalMemory(data, userId) {
+      return data.userId == userId &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 40 &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 2000 &&
+        data.encrypted is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidProductivityTask(data, userId) {
+      return data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.notes is string && data.notes.size() <= 2000 &&
+        data.category in ['task', 'reminder'] &&
+        data.dueLabel is string && data.dueLabel.size() <= 80 &&
+        data.completed is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidProductivityNote(data, userId) {
+      return data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 10000 &&
+        data.tag is string && data.tag.size() <= 40 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidVisionHistoryEntry(data, userId) {
+      return data.userId == userId &&
+        data.mode in ['analysis', 'generation'] &&
+        data.prompt is string && data.prompt.size() >= 1 && data.prompt.size() <= 2000 &&
+        data.resultSummary is string && data.resultSummary.size() >= 1 && data.resultSummary.size() <= 10000 &&
+        data.savedLocally is bool &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCodingProjectRecord(data, userId) {
+      return data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+        data.language is string && data.language.size() >= 1 && data.language.size() <= 40 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        data.prompt is string && data.prompt.size() >= 1 && data.prompt.size() <= 4000 &&
+        data.codeOutput is string && data.codeOutput.size() >= 1 && data.codeOutput.size() <= 30000 &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidUpdateAuditRecord(data, userId) {
+      return data.userId == userId &&
+        data.version is string && data.version.size() >= 1 && data.version.size() <= 30 &&
+        data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 2000 &&
+        data.status in ['reviewed', 'approved'] &&
+        isValidTimestamp(data.createdAt) &&
+        isValidTimestamp(data.updatedAt);
+    }
+
+    // --- User-Scoped Subcollections ---
+
+    match /users/{userId} {
+
+      match /profile/{profileId} {
+        allow get: if isOwner(userId) && isValidId(profileId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(profileId) &&
+          incoming().keys().hasAll([
+            'userId', 'ownerDisplayName', 'primaryLanguage', 'memoryEnabled',
+            'selectedVoiceId', 'voiceSpeechRate', 'voicePitch', 'favoriteVoiceIds',
+            'securityPinConfigured', 'biometricEnabled', 'secureChatEnabled',
+            'voicePassphraseEnabled', 'emergencyLocked', 'installedVersion',
+            'lastUpdateReviewIso', 'nextUpdateReviewIso', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'ownerDisplayName', 'primaryLanguage', 'memoryEnabled',
+            'selectedVoiceId', 'voiceSpeechRate', 'voicePitch', 'favoriteVoiceIds',
+            'securityPinConfigured', 'biometricEnabled', 'secureChatEnabled',
+            'voicePassphraseEnabled', 'emergencyLocked', 'installedVersion',
+            'lastUpdateReviewIso', 'nextUpdateReviewIso', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidProfileSettings(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(profileId) &&
+          isValidProfileSettings(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'ownerDisplayName', 'primaryLanguage', 'memoryEnabled',
+            'selectedVoiceId', 'voiceSpeechRate', 'voicePitch', 'favoriteVoiceIds',
+            'securityPinConfigured', 'biometricEnabled', 'secureChatEnabled',
+            'voicePassphraseEnabled', 'emergencyLocked', 'installedVersion',
+            'lastUpdateReviewIso', 'nextUpdateReviewIso', 'updatedAt'
+          ]);
+        allow delete: if isOwner(userId) && isValidId(profileId);
+      }
+
+      match /chats/{messageId} {
+        allow get: if isOwner(userId) && isValidId(messageId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(messageId) &&
+          incoming().keys().hasAll(['userId', 'role', 'content', 'language', 'center', 'encrypted', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'role', 'content', 'language', 'center', 'encrypted', 'createdAt', 'updatedAt']) &&
+          isValidChatMessage(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(messageId) &&
+          isValidChatMessage(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().role == existing().role &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['content', 'encrypted', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(messageId);
+      }
+
+      match /memories/{memoryId} {
+        allow get: if isOwner(userId) && isValidId(memoryId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(memoryId) &&
+          incoming().keys().hasAll(['userId', 'category', 'content', 'encrypted', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'category', 'content', 'encrypted', 'createdAt', 'updatedAt']) &&
+          isValidPersonalMemory(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(memoryId) &&
+          isValidPersonalMemory(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['category', 'content', 'encrypted', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(memoryId);
+      }
+
+      match /tasks/{taskId} {
+        allow get: if isOwner(userId) && isValidId(taskId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(taskId) &&
+          incoming().keys().hasAll(['userId', 'title', 'notes', 'category', 'dueLabel', 'completed', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'title', 'notes', 'category', 'dueLabel', 'completed', 'createdAt', 'updatedAt']) &&
+          isValidProductivityTask(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(taskId) &&
+          isValidProductivityTask(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'notes', 'category', 'dueLabel', 'completed', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(taskId);
+      }
+
+      match /notes/{noteId} {
+        allow get: if isOwner(userId) && isValidId(noteId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(noteId) &&
+          incoming().keys().hasAll(['userId', 'title', 'content', 'tag', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'title', 'content', 'tag', 'createdAt', 'updatedAt']) &&
+          isValidProductivityNote(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(noteId) &&
+          isValidProductivityNote(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'tag', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(noteId);
+      }
+
+      match /visionHistory/{entryId} {
+        allow get: if isOwner(userId) && isValidId(entryId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(entryId) &&
+          incoming().keys().hasAll(['userId', 'mode', 'prompt', 'resultSummary', 'savedLocally', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'mode', 'prompt', 'resultSummary', 'savedLocally', 'createdAt', 'updatedAt']) &&
+          isValidVisionHistoryEntry(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(entryId) &&
+          isValidVisionHistoryEntry(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().mode == existing().mode &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['savedLocally', 'resultSummary', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(entryId);
+      }
+
+      match /codingProjects/{projectId} {
+        allow get: if isOwner(userId) && isValidId(projectId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(projectId) &&
+          incoming().keys().hasAll(['userId', 'title', 'language', 'category', 'prompt', 'codeOutput', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'title', 'language', 'category', 'prompt', 'codeOutput', 'createdAt', 'updatedAt']) &&
+          isValidCodingProjectRecord(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(projectId) &&
+          isValidCodingProjectRecord(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'language', 'category', 'prompt', 'codeOutput', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(projectId);
+      }
+
+      match /updateHistory/{recordId} {
+        allow get: if isOwner(userId) && isValidId(recordId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidId(recordId) &&
+          incoming().keys().hasAll(['userId', 'version', 'summary', 'status', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'version', 'summary', 'status', 'createdAt', 'updatedAt']) &&
+          isValidUpdateAuditRecord(incoming(), userId);
+        allow update: if isOwner(userId) &&
+          isValidId(recordId) &&
+          isValidUpdateAuditRecord(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().version == existing().version &&
+          incoming().createdAt == existing().createdAt &&
+          existing().status != 'approved' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['summary', 'status', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(recordId);
+      }
+    }
+  }
+}

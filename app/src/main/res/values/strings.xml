@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Jarvis</string>
+    <string name="owner_display_name">aarif khann</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="core_subtitle">GOLDEN HOLOGRAPHIC AI CORE</string>
+    <string name="voice_command_hint">Speak or type in English / हिंदी...</string>
+</resources>

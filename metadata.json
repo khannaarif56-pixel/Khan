@@ -1,0 +1,8 @@
+{
+  "name": "Jarvis",
+  "description": "Futuristic Golden Holographic AI Personal Assistant for Android with Hindi/English voice & chat, AI Vision, Mobile Controls, AI Tools, Productivity, High Security, Worldwide Search, Coding Studio, and Update Center.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

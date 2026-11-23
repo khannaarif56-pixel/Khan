@@ -1,0 +1,188 @@
+{
+  "entities": {
+    "JarvisProfileSettings": {
+      "title": "JarvisProfileSettings",
+      "description": "User-scoped preferences, voice configuration, security flags, and 4-month update cycle tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "ownerDisplayName": { "type": "string", "description": "Owner badge display label (default: aarif khann)." },
+        "primaryLanguage": { "type": "string", "enum": ["en", "hi"], "description": "Active conversation and voice language." },
+        "memoryEnabled": { "type": "boolean", "description": "Whether personal memory learning is approved by user." },
+        "selectedVoiceId": { "type": "string", "description": "Selected voice profile ID." },
+        "voiceSpeechRate": { "type": "number", "description": "TTS speech rate between 0.5 and 2.0." },
+        "voicePitch": { "type": "number", "description": "TTS voice pitch between 0.5 and 2.0." },
+        "favoriteVoiceIds": { "type": "array", "description": "Up to 20 saved favorite voice profile IDs." },
+        "securityPinConfigured": { "type": "boolean", "description": "Whether a local hashed PIN is configured." },
+        "biometricEnabled": { "type": "boolean", "description": "Whether Android BiometricPrompt (fingerprint/face) is enabled." },
+        "secureChatEnabled": { "type": "boolean", "description": "Whether secure encrypted chat mode is active." },
+        "voicePassphraseEnabled": { "type": "boolean", "description": "Whether secondary voice passphrase verification is enabled." },
+        "emergencyLocked": { "type": "boolean", "description": "Whether emergency lockdown is currently active." },
+        "installedVersion": { "type": "string", "description": "Currently active Jarvis version." },
+        "lastUpdateReviewIso": { "type": "string", "description": "ISO date of last update review." },
+        "nextUpdateReviewIso": { "type": "string", "description": "ISO date of next scheduled 4-month review." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": [
+        "userId",
+        "ownerDisplayName",
+        "primaryLanguage",
+        "memoryEnabled",
+        "selectedVoiceId",
+        "voiceSpeechRate",
+        "voicePitch",
+        "favoriteVoiceIds",
+        "securityPinConfigured",
+        "biometricEnabled",
+        "secureChatEnabled",
+        "voicePassphraseEnabled",
+        "emergencyLocked",
+        "installedVersion",
+        "lastUpdateReviewIso",
+        "nextUpdateReviewIso",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Persisted user and JARVIS conversation turn.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "language": { "type": "string", "enum": ["en", "hi"] },
+        "center": { "type": "string", "enum": ["brain", "voice", "search", "google", "coding", "tools"] },
+        "encrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "role", "content", "language", "center", "encrypted", "createdAt", "updatedAt"]
+    },
+    "PersonalMemory": {
+      "title": "PersonalMemory",
+      "description": "User-approved personal memory item (stored encrypted when secure vault is active).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string" },
+        "content": { "type": "string" },
+        "encrypted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "category", "content", "encrypted", "createdAt", "updatedAt"]
+    },
+    "ProductivityTask": {
+      "title": "ProductivityTask",
+      "description": "Task or reminder item in the Productivity Center.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "notes": { "type": "string" },
+        "category": { "type": "string", "enum": ["task", "reminder"] },
+        "dueLabel": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "title", "notes", "category", "dueLabel", "completed", "createdAt", "updatedAt"]
+    },
+    "ProductivityNote": {
+      "title": "ProductivityNote",
+      "description": "Personal note saved in the Productivity Center.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "tag": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "title", "content", "tag", "createdAt", "updatedAt"]
+    },
+    "VisionHistoryEntry": {
+      "title": "VisionHistoryEntry",
+      "description": "History entry for AI Vision image analysis or AI image generation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "mode": { "type": "string", "enum": ["analysis", "generation"] },
+        "prompt": { "type": "string" },
+        "resultSummary": { "type": "string" },
+        "savedLocally": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "mode", "prompt", "resultSummary", "savedLocally", "createdAt", "updatedAt"]
+    },
+    "CodingProjectRecord": {
+      "title": "CodingProjectRecord",
+      "description": "Saved AI Development Center code generation, bug-fix, or architecture blueprint.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "language": { "type": "string" },
+        "category": { "type": "string" },
+        "prompt": { "type": "string" },
+        "codeOutput": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "title", "language", "category", "prompt", "codeOutput", "createdAt", "updatedAt"]
+    },
+    "UpdateAuditRecord": {
+      "title": "UpdateAuditRecord",
+      "description": "User-approved Update Center review or version approval entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "version": { "type": "string" },
+        "summary": { "type": "string" },
+        "status": { "type": "string", "enum": ["reviewed", "approved"] },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "version", "summary", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profile/{profileId}": {
+      "schema": { "$ref": "#/entities/JarvisProfileSettings" },
+      "description": "User-scoped Jarvis settings document (profileId = 'settings')."
+    },
+    "/users/{userId}/chats/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "User-scoped AI conversation history."
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": { "$ref": "#/entities/PersonalMemory" },
+      "description": "User-approved personal memories."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/ProductivityTask" },
+      "description": "User-scoped tasks and reminders."
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/ProductivityNote" },
+      "description": "User-scoped productivity notes."
+    },
+    "/users/{userId}/visionHistory/{entryId}": {
+      "schema": { "$ref": "#/entities/VisionHistoryEntry" },
+      "description": "User-scoped AI vision analysis and generation logs."
+    },
+    "/users/{userId}/codingProjects/{projectId}": {
+      "schema": { "$ref": "#/entities/CodingProjectRecord" },
+      "description": "User-scoped AI Development Center saved projects."
+    },
+    "/users/{userId}/updateHistory/{recordId}": {
+      "schema": { "$ref": "#/entities/UpdateAuditRecord" },
+      "description": "User-scoped Update Center review & approval records."
+    }
+  }
+}
